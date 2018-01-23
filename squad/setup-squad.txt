@@ -1,0 +1,4 @@
+git clone https://www.github.com/Linaro/squad
+cd squad
+docker build -t chaseqi/squad -f Dockerfile .
+docker run --log-driver=journald --privileged --name squad  --volume /tmp/squad/:/var/jenkins_home:rw --publish=8000:8000 -it chaseqi/squad
