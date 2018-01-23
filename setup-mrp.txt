@@ -1,0 +1,100 @@
+## setup kea
+apt install build-essential liblog4cplus-dev libcurl4-openssl-dev libssl-dev libboost-all-dev
+
+cd /opt/source
+wget https://ftp.isc.org/isc/kea/1.2.0/kea-1.2.0.tar.gz
+tar xf kea-1.2.0.tar.gz
+cd kea-1.2.0
+./configure --prefix=/opt/kea
+make
+make install
+
+git clone https://github.com/Linaro/mr-provisioner-kea
+cd mr-provisioner-kea
+make KEA_SRC=../kea-1.2.0 KEA_PREFIX=/opt/kea
+make KEA_SRC=../kea-1.2.0 KEA_PREFIX=/opt/kea install
+
+## setup mr-provisioner
+# master branch.
+curl -sL https://deb.nodesource.com/setup_6.x -o nodesource_setup.sh
+bash nodesource_setup.sh
+apt install nodejs
+cd /opt
+git clone https://github.com/Linaro/mr-provisioner
+cd mr-provisioner/
+make
+
+# using released tarball.
+wget https://github.com/Linaro/mr-provisioner/releases/download/v0.2.7/mr-provisioner-0.2.7.tar.gz
+tar xf mr-provisioner-0.2.7.tar.gz
+ln -s mr-provisioner-0.2.7/ mr-provisioner
+cd mr-provisioner
+
+virtualenv --python=python3 env
+source env/bin/activate
+pip install -r requirements.txt
+
+# setup database
+apt install postgresql
+sudo -u postgres -s
+psql
+postgres=# CREATE DATABASE hwserver;
+CREATE DATABASE
+postgres=# CREATE ROLE mrp WITH PASSWORD 'linaro' LOGIN;
+CREATE ROLE
+postgres=# GRANT ALL PRIVILEGES ON DATABASE hwserver TO mrp;
+GRANT
+postgres=# \q
+
+cd /opt/mr-provisioner
+source env/bin/activate
+./run.py -c /etc/mr-provisioner.ini db upgrade
+
+## setup ws-subprocess
+apt-get install golang
+git clone https://github.com/bwalex/ws-subprocess
+cd ws-subprocess
+make
+
+## setup tftp-http-proxy
+git clone https://github.com/bwalex/tftp-http-proxy
+cd tftp-http-proxy/
+make
+
+## setup/copy other files.
+/etc/kea.conf
+/etc/mr-provisioner.ini
+/var/lib/mr-provisioner/tftp/mlab-grubaa64.efi
+/etc/systemd/system/mr-provisioner.service
+/etc/systemd/system/mr-provisioner-tftp.service
+/etc/systemd/system/mr-provisioner-ws.service
+/etc/systemd/system/kea-dhcp4.service
+/etc/network/interfaces
+/etc/rc.local
+
+
+### Deployment
+## Using systemd
+# Enable
+systemctl enable mr-provisioner.service
+systemctl enable mr-provisioner-ws.service
+systemctl enable mr-provisioner-tftp.service
+systemctl enable kea-dhcp4.service
+# Start
+systemctl start mr-provisioner.service
+systemctl start mr-provisioner-ws.service
+systemctl start mr-provisioner-tftp.service
+systemctl start kea-dhcp4.service
+
+## Using commands
+# Start up kea-dhcp4
+/opt/kea/sbin/kea-dhcp4 -c /etc/kea.conf
+# Start up ws-subprocess:
+/opt/ws-subprocess/dist/ws-subprocess -controller-url "http://localhost:5000/admin/ws-subprocess" -listen "0.0.0.0:8866"
+# Start up tftp-http-proxy:
+/opt/tftp-http-proxy/dist/tftp-http-proxy -http-base-url "http://localhost:5000/tftp/"
+# And finally, start up mr-provisioner:
+cd /opt/mr-provisioner
+source env/bin/activate
+./run.py -c /etc/mr-provisioner.ini tornado -h 0.0.0.0 -p 5000
+
