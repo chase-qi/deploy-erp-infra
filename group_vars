@@ -1,0 +1,5 @@
+mr_provisioner_url: 'http://192.0.2.1:5000'
+mr_provisioner_auth_token: 'xkqfn+bNwmt12K3jbv5tNftkNHbm1g+hb9JlwDQqfe0='
+mr_provisioner_preseed_name: 'debian9'
+mr_provisioner_arch: 'arm64'
+mr_provisioner_subarch: 'efi'
